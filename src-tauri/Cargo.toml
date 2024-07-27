@@ -1,0 +1,29 @@
+[package]
+name = "flows"
+version = "0.0.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1", features = [] }
+
+[dependencies]
+tauri = { version = "1", features = [ "global-shortcut-all", "system-tray", "shell-open"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+coca = "0.3.0"
+cocoa = "0.25.0"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+tracing-appender = "0.2.3"
+core-foundation = "0.9.4"
+core-graphics = "0.23.2"
+chrono = "0.4.38"
+libproc = "0.14.8"
+
+[features]
+# This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
