@@ -1,33 +1,13 @@
-import React, { useEffect, useState } from 'react';
-
-type AppUsage = {
-  [key: string]: [number, number][];
-};
-
-type AppTotalUsage = {
-  name: string;
-  totalSecs: number;
-  durations: [number, number][];
-};
+import React from 'react';
+import { AppUsage } from './App.tsx';
 
 type AppUsageComponentProps = {
-  appUsages: AppUsage;
+  appUsages: AppUsage[];
   startTime: number;
   endTime: number;
 };
 
 const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startTime, endTime }) => {
-  const [totalUsages, setTotalUsages] = useState<AppTotalUsage[]>([]);
-
-  const calculateTotalUsage = (usages: AppUsage): AppTotalUsage[] => {
-    const totals = Object.entries(usages).map(([name, times]) => {
-      const totalSecs = Math.round(times.reduce((acc, [start, end]) => acc + (end - start), 0) / 1000);
-      return { name, totalSecs, durations: times };
-    });
-    totals.sort((a, b) => b.totalSecs - a.totalSecs);
-    return totals;
-  };
-
   const colors = [
     'bg-[#F8E629]',
     'bg-[#9DBBD8]',
@@ -37,11 +17,6 @@ const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startT
     'bg-[#EE8505]',
     'bg-[#EFCFB3]'
   ];
-
-  useEffect(() => {
-    const totals = calculateTotalUsage(appUsages);
-    setTotalUsages(totals);
-  }, [appUsages]);
 
   return (
     <div className="flex flex-row w-full h-full gap-3 dark:bg-gray-900 dark:text-white select-none">
@@ -58,7 +33,7 @@ const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startT
           </div>
         ))}
 
-        {totalUsages.map(({name, durations}, index) => (
+        {appUsages.map(({name, durations}, index) => (
           <div key={name} className="absolute left-10 right-0 h-full">
             {durations.map(([start, end], i) => {
               const top = `${(start - startTime) / (endTime - startTime) * 100}%`;
@@ -79,7 +54,7 @@ const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startT
         ))}
       </div>
       <div className='w-1/2 p-2 overflow-y-auto'>
-        {totalUsages.map(({ name, totalSecs }, index) => (
+        {appUsages.map(({ name, total_secs: totalSecs }, index) => (
           <div key={name} className="mb-4 p-4 bg-white dark:bg-gray-800 shadow rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition duration-300 flex flex-col items-start">
             <div className='flex flex-row justify-start items-center'>
               <span className={`w-2 h-2 rounded-full ${colors[index % colors.length]} mr-2`}></span>

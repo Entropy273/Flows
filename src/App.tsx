@@ -4,19 +4,26 @@ import AppUsageComponent from './AppUsageComponent';
 import { listen } from '@tauri-apps/api/event';
 import { register, unregisterAll } from '@tauri-apps/api/globalShortcut';
 
-type AppUsage = {
-  [key: string]: [number, number][];
+export type AppUsage = {
+  name: string,
+  path: string,
+  total_secs: number,
+  durations: [number, number][],
 };
 
 const App: React.FC = () => {
-  const [appUsages, setAppUsages] = useState<AppUsage>({});
+  const [appUsages, setAppUsages] = useState<AppUsage[]>([]);
 
   useEffect(() => {
+    document.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+    });
+
     async function registerGlobalShortcut() {
       try {
         await unregisterAll();
         await register('Option+F', async () => {
-          await invoke('show_window');
+          await invoke('show_window_handler');
         });
       } catch (error) {
         console.error('Failed to register global shortcut:', error);
@@ -26,7 +33,10 @@ const App: React.FC = () => {
 
     async function fetchAppUsages() {
       try {
-        const usages: AppUsage = await invoke('get_app_usages');
+        const usages: AppUsage[] = await invoke('get_app_usages_handler');
+        console.log("App usage:\n" + usages.map(usage => 
+          `${usage.name}: ${usage.total_secs}s, ${usage.durations.length} times`
+        ).join('\n'));
         setAppUsages(usages);
       } catch (error) {
         console.error('Failed to fetch app usages:', error);
@@ -43,8 +53,8 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const getDurationFromUsages = (usages: AppUsage): [number, number] => {
-    const start = Math.min(...Object.values(usages).map((times) => Math.min(...times.map(([start, _]) => start))));
+  const getDurationFromUsages = (usages: AppUsage[]): [number, number] => {
+    const start = Math.min(...usages.map((usage) => usage.durations[0][0]));
     const date = new Date(start);
     date.setHours(0, 0, 0, 0);
     const startTime = date.getTime();

@@ -1,10 +1,12 @@
 use core_foundation::{number::*, string::*};
 use core_graphics::display::*;
-use std::collections::HashMap;
 use std::ffi::{c_void, CString};
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::ptr;
+use serde::Serialize;
+
+use crate::utils::get_log_file_path;
 
 #[derive(Debug)]
 #[derive(PartialEq)]
@@ -25,7 +27,17 @@ impl EventType {
     }
 }
 
+#[derive(Serialize)]
+pub struct AppUsage {
+    pub name: String,
+    pub path: String,
+    pub total_secs: u64,
+    pub durations: Vec<(u64, u64)>
+}
+
 fn get_app_name_from_path(path: &str) -> String {
+    // TODO: use a map to replace
+
     // If path starts with /Applications/, the app name is the next segment
     // If path starts with other paths, the app name is the last segment
     let segments: Vec<&str> = path.split('/').collect();
@@ -37,13 +49,14 @@ fn get_app_name_from_path(path: &str) -> String {
     }
 }
 
-pub fn get_app_usage_from_log(file_path: &str) -> io::Result<HashMap<String, Vec<(u64, u64)>>> {
+pub fn get_app_usages() -> io::Result<Vec<AppUsage>> {
     let mut current_app_name: Option<String> = None;
-    let mut app_usage: HashMap<String, Vec<(u64, u64)>> = HashMap::new();
+    let mut app_usages: Vec<AppUsage> = Vec::new();
 
-    let file = File::open(file_path)?;
+    let file = File::open(get_log_file_path())?;
     let reader = io::BufReader::new(file);
 
+    // Read each line of the log file, and get all durations for each app
     for line in reader.lines() {
         let line = line?;
         let parts: Vec<&str> = line.split(',').collect();
@@ -61,34 +74,50 @@ pub fn get_app_usage_from_log(file_path: &str) -> io::Result<HashMap<String, Vec
 
             // Set end time for previous app
             if let Some(prev_app_name) = &current_app_name {
-                app_usage
-                    .entry(prev_app_name.clone())
-                    .or_insert(Vec::new())
-                    .last_mut()
-                    .map(|(_, end_time)| *end_time = timestamp);
+                app_usages
+                    .iter_mut()
+                    .find(|app| &app.name == prev_app_name)
+                    .map(|app| app.durations.last_mut().map(|(_, end_time)| *end_time = timestamp));
             }
             // Set start time for current app
             current_app_name = Some(app_name.clone());
-            app_usage
-                .entry(app_name.clone())
-                .or_insert(Vec::new())
-                .push((timestamp, timestamp));
+            if let Some(app) = app_usages.iter_mut().find(|app| &app.name == &app_name) {
+                app.durations.push((timestamp, timestamp));
+            } else {
+                app_usages.push(AppUsage {
+                    name: app_name,
+                    path: app_path.to_string(),
+                    total_secs: 0,
+                    durations: vec![(timestamp, timestamp)],
+                });
+            }
         }
         // When shutting down or not in use
         else if event_type == "1" || event_type == "2" {
             // Set end time for current app
             if let Some(prev_app_name) = &current_app_name {
-                app_usage
-                    .entry(prev_app_name.clone())
-                    .or_insert(Vec::new())
-                    .last_mut()
-                    .map(|(_, end_time)| *end_time = timestamp);
+                app_usages
+                    .iter_mut()
+                    .find(|app| &app.name == prev_app_name)
+                    .map(|app| app.durations.last_mut().map(|(_, end_time)| *end_time = timestamp));
             }
             current_app_name = None;
         }
     }
 
-    Ok(app_usage)
+    // Calculate total time for each app
+    for app in app_usages.iter_mut() {
+        let mut total_microsecs: u64 = 0;
+        for (start_time, end_time) in app.durations.iter() {
+            total_microsecs += end_time - start_time;
+        }
+        app.total_secs = total_microsecs / 1000;
+    }
+
+    // Sort by total time
+    app_usages.sort_by(|a, b| b.total_secs.cmp(&a.total_secs));
+
+    Ok(app_usages)
 }
 
 pub fn get_window_property(

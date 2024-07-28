@@ -3,7 +3,6 @@
 use libproc::libproc::proc_pid;
 use std::thread;
 use std::time::Duration;
-use std::collections::HashMap;
 use tauri::{AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, WindowEvent};
 use tracing::{error, info};
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -15,25 +14,22 @@ mod sys_monitor;
 mod utils;
 
 use app_management::{add_app_to_login_items, is_app_in_login_items, terminate_previous_instance};
-use sys_monitor::{get_app_usage_from_log, get_frontmost_window_pid, EventType};
-use utils::{get_current_timestamp, get_log_file_path, write_to_file};
+use sys_monitor::{get_app_usages, get_frontmost_window_pid, EventType, AppUsage};
+use utils::{get_current_timestamp, write_to_file};
 
 #[tauri::command]
-fn get_app_usages() -> HashMap<String, Vec<(u64, u64)>> {
-    match get_app_usage_from_log(match get_log_file_path().to_str() {
-        Some(path) => path,
-        _ => panic!("Failed to get log file path"),
-    }) {
+fn get_app_usages_handler() -> Vec<AppUsage> {
+    match get_app_usages() {
         Ok(usage) => usage,
         Err(e) => {
             error!("Failed to get app usage: {}", e);
-            std::collections::HashMap::new()
+            Vec::new()
         }
     }
 }
 
 #[tauri::command]
-fn show_window(app_handle: AppHandle) {
+fn show_window_handler(app_handle: AppHandle) {
     if let Some(window) = app_handle.get_window("main") {
         window.emit("refresh_data", "").unwrap();
         window.show().unwrap();
@@ -116,7 +112,7 @@ fn main() {
     // Start the app
     tauri::Builder::default()
         .setup(|app| Ok(app.set_activation_policy(tauri::ActivationPolicy::Accessory)))
-        .invoke_handler(tauri::generate_handler![get_app_usages, show_window])
+        .invoke_handler(tauri::generate_handler![get_app_usages_handler, show_window_handler])
         .system_tray(tray)
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::MenuItemClick { id, .. } => {
