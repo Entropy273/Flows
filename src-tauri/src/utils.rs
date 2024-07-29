@@ -1,4 +1,5 @@
-use chrono::Local;
+use chrono::{Local, TimeZone};
+use chrono::LocalResult::Single;
 use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -44,4 +45,13 @@ pub fn get_current_timestamp() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64
+}
+
+pub fn get_day_start_timestamp(timestamp: u64) -> u64 {
+    let date = Local.timestamp_millis_opt(timestamp as i64);
+    let start_of_day = match date {
+        Single(d) => d.date_naive().and_hms_opt(0, 0, 0),
+        _ => Local::now().date_naive().and_hms_opt(0, 0, 0)
+    };
+    start_of_day.map(|date| date.and_utc().timestamp_millis()).unwrap_or(0) as u64
 }

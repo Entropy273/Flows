@@ -8,7 +8,7 @@ use std::path::Path;
 use std::ptr;
 use tracing::debug;
 
-use crate::utils::get_log_file_dir_str;
+use crate::utils::{get_day_start_timestamp, get_log_file_dir_str};
 
 #[derive(Debug, PartialEq)]
 #[allow(dead_code)]
@@ -89,7 +89,7 @@ pub fn get_app_usages_from_log(
     // Find all log files between start_time and end_time
     let mut temp_timestamp = start_timestamp;
     let mut log_files = Vec::new();
-    while temp_timestamp <= end_timestamp - end_timestamp % 86400000 + 86399000 {
+    while temp_timestamp <= get_day_start_timestamp(end_timestamp) + 86399000 {
         match chrono::DateTime::from_timestamp_millis(temp_timestamp as i64) {
             Some(date) => {
                 let log_file_name =

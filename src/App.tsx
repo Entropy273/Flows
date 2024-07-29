@@ -11,10 +11,15 @@ export type AppUsage = {
   durations: [number, number][],
 };
 
+function getTodayStartTimestamp(): number {
+  const now = new Date();
+  return (new Date(now.getFullYear(), now.getMonth(), now.getDate())).getTime();
+}
+
 const App: React.FC = () => {
   const [appUsages, setAppUsages] = useState<AppUsage[]>([]);
-  const [startTimestamp, setStartTimestamp] = useState<number>(Date.now() - Date.now() % 86400000);
-  const [endTimestamp, setEndTimestamp] = useState<number>(Date.now() - Date.now() % 86400000 + 86399000);
+  const [startTimestamp, setStartTimestamp] = useState<number>(getTodayStartTimestamp());
+  const [endTimestamp, setEndTimestamp] = useState<number>(getTodayStartTimestamp() + 86399000);
 
   async function registerGlobalShortcut() {
     try {
