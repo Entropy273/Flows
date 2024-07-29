@@ -12,7 +12,7 @@ use tauri::{
     SystemTrayMenuItem, WindowEvent,
 };
 use std::sync::{Arc, Mutex};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{fmt, Registry};
@@ -27,7 +27,6 @@ use utils::{get_current_timestamp, write_to_file};
 
 #[tauri::command]
 fn get_app_usages_handler(start_timestamp: u64, end_timestamp: u64) -> Vec<AppUsage> {
-    debug!("Getting app usages from {} to {}", start_timestamp, end_timestamp);
     match get_app_usages_from_log(start_timestamp, end_timestamp) {
         Ok(usage) => usage,
         Err(e) => {
@@ -48,6 +47,7 @@ fn show_window_handler(app_handle: AppHandle) {
     }
 }
 
+/// Check if the frontmost window has changed. If so, log the event.
 fn check(shared_previous_path: Arc<Mutex<String>>) {
     match get_frontmost_window_pid() {
         Ok(pid) => match proc_pid::pidpath(pid) {

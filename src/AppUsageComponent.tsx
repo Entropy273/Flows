@@ -21,8 +21,11 @@ const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startT
   const [cardExpanded, setCardExpanded] = useState<{ [key: string]: boolean }>({});
   const [heights, setHeights] = useState<{ [key: string]: number }>({});
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
-  const refs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  
+  const [mousePosition, setMousePosition] = useState<number>(0);
+  const [mouseLineState, setMouseLineState] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
   const toggleExpand = (name: string) => {
     setCardExpanded(prev => ({
       ...prev,
@@ -43,17 +46,36 @@ const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startT
   useEffect(() => {
     const newHeights: { [key: string]: number } = {};
     Object.keys(cardExpanded).forEach((name) => {
-      if (refs.current[name]) {
-        newHeights[name] = refs.current[name]!.scrollHeight;
+      if (cardRefs.current[name]) {
+        newHeights[name] = cardRefs.current[name]!.scrollHeight;
       }
     });
     setHeights(newHeights);
   }, [cardExpanded]);
 
+  const calculateTimeLabel = (position: number) => {
+    const containerHeight = containerRef.current?.getBoundingClientRect().height || window.innerHeight;
+    const timePercentage = position / containerHeight;
+    const timestamp = startTimestamp + timePercentage * (endTimestamp - startTimestamp);
+    const date = new Date(timestamp);
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="flex flex-row w-full h-full gap-3 dark:bg-gray-900 dark:text-white select-none">
+    <div className="flex flex-row w-full flex-grow pt-2 pb-5 overflow-y-auto gap-3 dark:bg-gray-900 dark:text-white select-none">
       {/** App usage chart */}
-      <div className="relative h-full w-1/2">
+      <div
+        ref={containerRef} 
+        className="relative h-full w-1/2"
+        onMouseMove={(e) => {
+          const containerTop = e.currentTarget.getBoundingClientRect().top;
+          setMousePosition(e.clientY - containerTop);
+          setMouseLineState(true);
+        }}
+        onMouseLeave={() => {
+          setMouseLineState(false);
+        }}
+      >
         {/** Time scale lines */}
         {Array.from({ length: 13 }).map((_, i) => (
           <div
@@ -87,6 +109,16 @@ const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startT
             })}
           </div>
         ))}
+
+        {/** Mouse hover line and time label */}
+          <div
+            className={`absolute left-0 w-full border-t border-red-500 shadow-lg shadow-red-500 transition duration-500 ${mouseLineState ? 'opacity-100' : 'opacity-0'}`}
+            style={{ top: mousePosition }}
+          >
+            <span className="absolute text-right w-10 transform -translate-y-1/2 bg-white dark:bg-gray-900 px-1 text-xs">
+              {calculateTimeLabel(mousePosition)}
+            </span>
+          </div>
       </div>
 
       {/** App usage card list */}
@@ -109,7 +141,7 @@ const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startT
               <p>{totalSecs >= 3600 ? `${Math.floor(totalSecs / 3600)}h` : ''} {totalSecs >= 60 ? `${Math.floor((totalSecs % 3600) / 60)}m` : ''} {`${totalSecs % 60}s`}</p>
             </div>
             <div
-              ref={el => (refs.current[name] = el)}
+              ref={el => (cardRefs.current[name] = el)}
               className={`w-full break-all text-xs transition-all duration-300 ease-in-out overflow-hidden`}
               style={{
                 maxHeight: cardExpanded[name] ? `${heights[name]}px` : '0',

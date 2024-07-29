@@ -1,3 +1,5 @@
+use chrono::{Local, TimeZone};
+use chrono::LocalResult::Single;
 use core_foundation::{dictionary::*, number::*, string::*};
 use core_graphics::display::*;
 use serde::Serialize;
@@ -89,28 +91,19 @@ pub fn get_app_usages_from_log(
     // Find all log files between start_time and end_time
     let mut temp_timestamp = start_timestamp;
     let mut log_files = Vec::new();
-    while temp_timestamp <= get_day_start_timestamp(end_timestamp) + 86399000 {
-        match chrono::DateTime::from_timestamp_millis(temp_timestamp as i64) {
-            Some(date) => {
-                let log_file_name =
-                    format!("{}/{}.log", get_log_file_dir_str(), date.format("%Y%m%d"));
+    while temp_timestamp <= get_day_start_timestamp(end_timestamp).unwrap_or(end_timestamp) + 86399000 {
+        match Local.timestamp_millis_opt(temp_timestamp as i64) {
+            Single(date) => {
+                let log_file_name = format!("{}/{}.log", get_log_file_dir_str(), date.format("%Y%m%d"));
                 log_files.push(log_file_name);
             }
-            _ => continue,
+            _ => continue
         }
+        
         temp_timestamp += 86400000;
     }
 
-    debug!(
-        "StartTime: {}, EndTime: {}\nLogFiles: {:?}",
-        chrono::DateTime::from_timestamp_millis(start_timestamp as i64)
-            .map(|date| date.format("%Y%m%d").to_string())
-            .unwrap_or(String::from("None")),
-        chrono::DateTime::from_timestamp_millis(start_timestamp as i64)
-            .map(|date| date.format("%Y%m%d").to_string())
-            .unwrap_or(String::from("None")),
-        log_files
-    );
+    debug!("Query log: StartTimestamp: {}, EndTimestamp: {}\nLogFiles: {:?}", start_timestamp, end_timestamp, log_files);
 
     for log_file_name in log_files {
         let file = File::open(log_file_name)?;

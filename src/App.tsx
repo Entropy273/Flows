@@ -32,9 +32,9 @@ const App: React.FC = () => {
     }
   }
 
-  async function fetchAppUsages(_startTimestamp: number, _endTimestamp: number) {
+  async function fetchAppUsages() {
     try {
-      const usages: AppUsage[] = await invoke('get_app_usages_handler', {startTimestamp: _startTimestamp, endTimestamp: _endTimestamp});
+      const usages: AppUsage[] = await invoke('get_app_usages_handler', {startTimestamp, endTimestamp});
       console.log("App usage:\n" + usages.map(usage => 
         `${usage.name}: ${usage.total_secs}s, ${usage.durations.length} times`
       ).join('\n'));
@@ -51,36 +51,34 @@ const App: React.FC = () => {
     
     registerGlobalShortcut();
 
-    fetchAppUsages(startTimestamp, endTimestamp);
+    fetchAppUsages();
 
     const unlisten = listen('refresh_data', () => {
-      fetchAppUsages(startTimestamp, endTimestamp);
+      fetchAppUsages();
     });
 
     return () => {
       unlisten.then((off) => off());
     };
-  }, []);
+  }, [startTimestamp, endTimestamp]);
 
   const handlePrevDay = () => {
-    fetchAppUsages(startTimestamp - 86400000, endTimestamp - 86400000);
     setStartTimestamp((startTimestamp) => startTimestamp - 86400000);
     setEndTimestamp((endTimestamp) => endTimestamp - 86400000);
   };
 
   const handleNextDay = () => {
-    fetchAppUsages(startTimestamp + 86400000, endTimestamp + 86400000);
     setStartTimestamp((startTimestamp) => startTimestamp + 86400000);
     setEndTimestamp((endTimestamp) => endTimestamp + 86400000);
   };
 
   const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
+    return date.toLocaleDateString().replace(/\//g, '-');
   };
 
   return (
-    <div className="flex flex-col gap-3 p-5 pb-20 h-screen justify-start dark:bg-gray-900">
-      <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-3 p-5 h-screen justify-start dark:bg-gray-900">
+      <div className="flex justify-between items-center select-none">
         <button onClick={handlePrevDay} className="text-white-800 dark:text-white p-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-300"><img src="LeftArrow.svg" alt="expand" className="w-5 h-5" /></button>
         <span className="text-xl dark:text-white">{formatDate(new Date(startTimestamp))}</span>
         <button onClick={handleNextDay} className="text-white-800 dark:text-white p-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-300"><img src="LeftArrow.svg" alt="expand" className="w-5 h-5 rotate-180" /></button>
