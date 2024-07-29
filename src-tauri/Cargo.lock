@@ -794,6 +794,7 @@ dependencies = [
  "core-foundation",
  "core-graphics 0.23.2",
  "libproc",
+ "objc",
  "serde",
  "serde_json",
  "tauri",

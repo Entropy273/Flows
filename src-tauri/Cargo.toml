@@ -23,6 +23,7 @@ core-foundation = "0.9.4"
 core-graphics = "0.23.2"
 chrono = "0.4.38"
 libproc = "0.14.8"
+objc = "0.2.7"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

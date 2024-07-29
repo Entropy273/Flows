@@ -3,11 +3,11 @@ import { AppUsage } from './App.tsx';
 
 type AppUsageComponentProps = {
   appUsages: AppUsage[];
-  startTime: number;
-  endTime: number;
+  startTimestamp: number;
+  endTimestamp: number;
 };
 
-const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startTime, endTime }) => {
+const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startTimestamp, endTimestamp }) => {
   const colors = [
     'bg-[#F8E629]',
     'bg-[#9DBBD8]',
@@ -71,8 +71,8 @@ const AppUsageComponent: React.FC<AppUsageComponentProps> = ({ appUsages, startT
         {appUsages.map(({ name, durations }, index) => (
           <div key={name} className="absolute left-10 right-0 h-full">
             {durations.map(([start, end], i) => {
-              const top = `${((start - startTime) / (endTime - startTime)) * 100}%`;
-              const height = `${((end - start) / (endTime - startTime)) * 100}%`;
+              const top = `${((start - startTimestamp) / (endTimestamp - startTimestamp)) * 100}%`;
+              const height = `${((end - start) / (endTimestamp - startTimestamp)) * 100}%`;
 
               return (
                 <div

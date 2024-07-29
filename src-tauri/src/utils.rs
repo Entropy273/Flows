@@ -20,7 +20,12 @@ pub fn get_log_file_path() -> PathBuf {
     PathBuf::from(&log_file_path_str)
 }
 
-pub fn write_to_file(event_type: EventType, timestamp: u128, path: &str) {
+pub fn get_log_file_dir_str() -> String {
+    let home_dir = env::var("HOME").unwrap();
+    format!("{}/Documents/Flows", home_dir)
+}
+
+pub fn write_to_file(event_type: EventType, timestamp: u64, path: &str) {
     let log_file_path = get_log_file_path();
     let mut file = OpenOptions::new()
         .append(true)
@@ -34,9 +39,9 @@ pub fn write_to_file(event_type: EventType, timestamp: u128, path: &str) {
     }
 }
 
-pub fn get_current_timestamp() -> u128 {
+pub fn get_current_timestamp() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_millis()
+        .as_millis() as u64
 }
