@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use chrono::Timelike;
 use cocoa::base::nil;
 use cocoa::foundation::NSString;
 use libproc::libproc::proc_pid;
@@ -8,11 +9,11 @@ use objc::{msg_send, sel, sel_impl};
 use std::thread;
 use std::time::Duration;
 use tauri::{
-    AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu,
-    SystemTrayMenuItem, WindowEvent,
+    AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, WindowEvent
 };
+use tauri::api::notification::Notification;
 use std::sync::{Arc, Mutex};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{fmt, Registry};
@@ -48,7 +49,7 @@ fn show_window_handler(app_handle: AppHandle) {
 }
 
 /// Check if the frontmost window has changed. If so, log the event.
-fn check(shared_previous_path: Arc<Mutex<String>>) {
+fn check(app: &AppHandle, shared_previous_path: Arc<Mutex<String>>) {
     match get_frontmost_window_pid() {
         Ok(pid) => match proc_pid::pidpath(pid) {
             Ok(current_path) => {
@@ -63,6 +64,19 @@ fn check(shared_previous_path: Arc<Mutex<String>>) {
             _ => error!("Failed to retrieve process path for PID {}", pid),
         },
         Err(e) => error!("{}", e),
+    }
+
+    // Notify the user when 23:30
+    let now = chrono::Local::now();
+    let title = "Flows";
+    let body = "Check your screen time!";
+
+    if now.hour() == 23 && now.minute() == 30 && now.second() == 0 {
+        let _ = Notification::new(&app.config().tauri.bundle.identifier)
+            .title(title)
+            .body(body)
+            .show();
+        debug!("Notified user: {}: {}", title, body);
     }
 }
 
@@ -119,15 +133,6 @@ fn main() {
 
     // Start the system monitor thread
     let shared_previous_path = Arc::new(Mutex::new(String::new()));
-    
-    let shared_path_clone = Arc::clone(&shared_previous_path);
-    let _ = thread::spawn(move || {
-        loop {
-            check(Arc::clone(&shared_path_clone));
-
-            thread::sleep(Duration::from_secs(1));
-        }
-    });
 
     // Create the system tray
     let shared_path_clone = Arc::clone(&shared_previous_path);
@@ -144,7 +149,17 @@ fn main() {
 
     // Start the app
     tauri::Builder::default()
-        .setup(|app| Ok(app.set_activation_policy(tauri::ActivationPolicy::Accessory)))
+        .setup(move |app| {
+            let shared_path_clone = Arc::clone(&shared_previous_path);
+            let app_handle = app.handle();
+            let _ = thread::spawn(move || {
+                loop {
+                    check(&app_handle, Arc::clone(&shared_path_clone));
+                    thread::sleep(Duration::from_secs(1));
+                }
+            });
+            Ok(app.set_activation_policy(tauri::ActivationPolicy::Accessory))
+        })
         .invoke_handler(tauri::generate_handler![
             get_app_usages_handler,
             show_window_handler
@@ -159,7 +174,7 @@ fn main() {
                         std::process::exit(0);
                     }
                     "dashboard" => {
-                        check(Arc::clone(&shared_path_clone));
+                        check(app, Arc::clone(&shared_path_clone));
                         let window = app.get_window("main").unwrap();
                         window.emit("refresh_data", "").unwrap();
                         window.show().unwrap();
