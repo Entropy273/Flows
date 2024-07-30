@@ -1,7 +1,6 @@
 {
   "name": "flows",
   "private": true,
-  "version": "0.1.0",
   "author": {
     "name": "Entropy",
     "email": "say2entropy@gmail.com"

@@ -6,8 +6,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "Flows",
-    "version": "0.1.0"
+    "productName": "Flows"
   },
   "tauri": {
     "systemTray": {
