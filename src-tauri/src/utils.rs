@@ -33,7 +33,7 @@ pub fn write_to_file(event_type: EventType, timestamp: u64, path: &str) {
         .create(true)
         .open(log_file_path)
         .unwrap();
-    if event_type == EventType::StopMonitoring {
+    if event_type == EventType::StopMonitoring || event_type == EventType::ShutDown {
         writeln!(file, "{},{}", event_type.to_int(), timestamp).unwrap();
     } else if event_type == EventType::CameToFront {
         writeln!(file, "{},{},{}", event_type.to_int(), timestamp, path).unwrap();

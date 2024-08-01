@@ -58,9 +58,9 @@ fn check(app: &AppHandle, shared_previous_path: Arc<Mutex<String>>) {
     // Update the timestamp and check the time difference
     let last_timestamp = LAST_CHECK_TIMESTAMP.load(Ordering::SeqCst);
     if current_timestamp > last_timestamp + 10_000 {
-        info!("More than 10 seconds passed since last check.");
+        info!("More than 10 seconds passed since last check. Last check: {}", last_timestamp);
 
-        write_to_file(EventType::ShutDown, current_timestamp, "");
+        write_to_file(EventType::ShutDown, last_timestamp, "");
         let mut previous_path = shared_previous_path.lock().unwrap();
         *previous_path = String::new();
     }
