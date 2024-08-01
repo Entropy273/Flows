@@ -6,13 +6,14 @@ use cocoa::foundation::NSString;
 use libproc::libproc::proc_pid;
 use objc::runtime::{Class, Object};
 use objc::{msg_send, sel, sel_impl};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tauri::{
     AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, WindowEvent
 };
 use tauri::api::notification::Notification;
-use std::sync::{Arc, Mutex};
 use tracing::{debug, error, info};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::layer::SubscriberExt;
@@ -25,6 +26,8 @@ mod utils;
 use app_management::{add_app_to_login_items, is_app_in_login_items, terminate_previous_instance};
 use sys_monitor::{get_app_usages_from_log, get_frontmost_window_pid, AppUsage, EventType};
 use utils::{get_current_timestamp, write_to_file};
+
+static LAST_CHECK_TIMESTAMP: AtomicU64 = AtomicU64::new(0);
 
 #[tauri::command]
 fn get_app_usages_handler(start_timestamp: u64, end_timestamp: u64) -> Vec<AppUsage> {
@@ -50,14 +53,25 @@ fn show_window_handler(app_handle: AppHandle) {
 
 /// Check if the frontmost window has changed. If so, log the event.
 fn check(app: &AppHandle, shared_previous_path: Arc<Mutex<String>>) {
+    let current_timestamp = get_current_timestamp();
+
+    // Update the timestamp and check the time difference
+    let last_timestamp = LAST_CHECK_TIMESTAMP.load(Ordering::SeqCst);
+    if current_timestamp > last_timestamp + 10_000 {
+        info!("More than 10 seconds passed since last check.");
+
+        write_to_file(EventType::ShutDown, current_timestamp, "");
+        let mut previous_path = shared_previous_path.lock().unwrap();
+        *previous_path = String::new();
+    }
+
     match get_frontmost_window_pid() {
         Ok(pid) => match proc_pid::pidpath(pid) {
             Ok(current_path) => {
                 let mut previous_path = shared_previous_path.lock().unwrap();
                 if *previous_path != current_path {
                     info!("New program: {}", current_path);
-                    let timestamp: u64 = get_current_timestamp();
-                    write_to_file(EventType::CameToFront, timestamp, &current_path);
+                    write_to_file(EventType::CameToFront, current_timestamp, &current_path);
                     *previous_path = current_path;
                 }
             }
@@ -65,6 +79,9 @@ fn check(app: &AppHandle, shared_previous_path: Arc<Mutex<String>>) {
         },
         Err(e) => error!("{}", e),
     }
+
+    // Update LAST_CHECK_TIMESTAMP with the current timestamp
+    LAST_CHECK_TIMESTAMP.store(current_timestamp, Ordering::SeqCst);
 
     // Notify the user when 23:30
     let now = chrono::Local::now();
@@ -133,6 +150,8 @@ fn main() {
 
     // Start the system monitor thread
     let shared_previous_path = Arc::new(Mutex::new(String::new()));
+    let current_timestamp = get_current_timestamp();
+    LAST_CHECK_TIMESTAMP.store(current_timestamp, Ordering::SeqCst);
 
     // Create the system tray
     let shared_path_clone = Arc::clone(&shared_previous_path);
